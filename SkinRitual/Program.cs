@@ -11,6 +11,7 @@ using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
+using Npgsql;
 
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration((ctx, cfg) =>
@@ -27,6 +28,10 @@ var host = Host.CreateDefaultBuilder(args)
         var cfg = context.Configuration;
         var conn = cfg.GetConnectionString("BotDb");
         //Console.WriteLine($"[DEBUG] TG_TOKEN = {cfg["TG_TOKEN"]}");
+        
+        // ЛОГИРУЕМ, КЕМ ПОДКЛЮЧАЕМСЯ (на dev; пароль не печатаем)
+        var csb = new NpgsqlConnectionStringBuilder(conn);
+        Console.WriteLine($"[DB] Host={csb.Host};Db={csb.Database};User={csb.Username};Port={csb.Port}");
 
         var token = cfg["TG_TOKEN"]                         // User Secrets / appsettings
                  ?? Environment.GetEnvironmentVariable("TG_TOKEN") // env-var
@@ -43,7 +48,8 @@ var host = Host.CreateDefaultBuilder(args)
 
 
         services.AddDbContext<BotDbContext>(opt =>
-            opt.UseNpgsql(conn));
+    opt.UseNpgsql(conn, b => b.MigrationsHistoryTable("__EFMigrationsHistory", "sr")));
+
 
         // создаём единственный словарь map и шарим его
         var map = new Dictionary<QuizStep, (string, string[])>(QuizHandler.DefaultMap);
@@ -61,7 +67,19 @@ var host = Host.CreateDefaultBuilder(args)
 using (var scope = host.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<BotDbContext>();
-    db.Database.Migrate();
+    try
+    {
+        db.Database.Migrate();            // ← автосоздание/апдейт схемы
+        Console.WriteLine("[DB] Migrate() OK");
+    }
+    catch (PostgresException ex) when (ex.SqlState == "28P01")
+    {
+        Console.Error.WriteLine(
+            $"[DB] 28P01: неверная аутентификация для пользователя '' к БД ''. " +
+            "Проверь User Secrets (логин/пароль), права роли LOGIN/OWNER и настройки pg_hba.conf."
+        );
+        throw;
+    }
 
     // сюда же помещаем "SetMyCommandsAsync"
     var bot = scope.ServiceProvider.GetRequiredService<ITelegramBotClient>();

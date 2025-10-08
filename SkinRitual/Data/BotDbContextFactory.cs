@@ -1,24 +1,38 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿// Data/BotDbContextFactory.cs
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.Extensions.Configuration;
+using Npgsql;
 
-namespace SkinRitual.Data
+namespace SkinRitual.Data;
+
+internal sealed class SecretsMarker { }
+
+public class BotDbContextFactory : IDesignTimeDbContextFactory<BotDbContext>
 {
-    /// <summary>
-    /// Используется инструментом dotnet ef для создания контекста в design-time.
-    /// </summary>
-    public class BotDbContextFactory : IDesignTimeDbContextFactory<BotDbContext>
+    public BotDbContext CreateDbContext(string[] args)
     {
-        public BotDbContext CreateDbContext(string[] args)
-        {
-            var builder = new DbContextOptionsBuilder<BotDbContext>();
+        var cfg = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddUserSecrets<SecretsMarker>(optional: true)
+            .AddEnvironmentVariables()
+            .Build();
 
-            // жёстко вписываем тут строку подключения OR читаем из ENV:
-            // var conn = Environment.GetEnvironmentVariable("BOTDB__ConnectionStrings__BotDb")
-            var conn = "Host=localhost;Port=5432;Database=botdb;Username=botuser;Password=0000";
+        var conn = cfg.GetConnectionString("BotDb")
+            ?? throw new InvalidOperationException("ConnectionStrings:BotDb missing.");
 
-            builder.UseNpgsql(conn);
+        // отладка: проверяем кем/куда пойдём
+        var csb = new NpgsqlConnectionStringBuilder(conn);
+        Console.WriteLine($"[EF] Host={csb.Host};Db={csb.Database};User={csb.Username};Port={csb.Port};SearchPath={csb.SearchPath}");
 
-            return new BotDbContext(builder.Options);
-        }
+        var options = new DbContextOptionsBuilder<BotDbContext>()
+            .UseNpgsql(conn, b =>
+            {
+                // ВАЖНО: таблица истории в схеме public
+                b.MigrationsHistoryTable("__EFMigrationsHistory", "sr");
+            })
+            .Options;
+
+        return new BotDbContext(options);
     }
 }

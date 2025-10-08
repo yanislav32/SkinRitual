@@ -75,46 +75,57 @@ namespace SkinRitual.Handlers
 
             // 1) приветственный текст
             const string welcome = """
-<b>Добро пожаловать в SOVETNIK.</b>
+<b>Добро пожаловать в PoreOver!🧡</b>
 
-Здесь начинается ваше знакомство с одной из самых надёжных инвестиционных команд в стране. Мы работаем там, где важна точность, расчёт и доверие. С теми, кто стремится не просто сохранить капитал, а использовать его как инструмент роста. Разрабатываем стратегии, помогаем управлять рисками, сопровождаем сделки, выстраиваем системный подход к деньгам.
+Мы создаём уход, где <b>на первом месте</b> — доĸазанная эффеĸтивность ичестные формулы. Каждое средство рождается из праĸтиĸи и научного подхода, чтобы дарить ĸоже результат и ощущение споĸойствия.
 
-SOVETNIK — это:
+<i><u>PoreOver — это:</u></i>
 
-🏆 Лауреат премии «Проект года» в категории «Инвестиционное консультирование», обошли БКС, Финам и Альфу.
-📊 Официальный участник общероссийской общественной организации «Инвестиционная Россия»
-🧠 Нам доверяют предприниматели, руководители, частные инвесторы — те, кто делает выбор в пользу точных решений и прозрачной стратегии.
+<blockquote>🌿 Униĸальные составы, собранные из проверенных аĸтивов и современных технологий.
+🔬 Абсолютная прозрачность: мы объясняем, ĸаĸ работает ĸаждый ингредиент.
+✨ Минимализм, ĸоторый эĸономит ресурсы и время: меньше продуĸтов, больше пользы.
+🤍 Ритуал заботы, в ĸотором ĸожа чувствует благодарность, а вы — уверенность.</blockquote>
+
+PoreOver выбирают те, ĸто <b>ценит ĸрасоту</b> без иллюзий, <b>честность</b> без ĸомпромиссов и уход, ĸоторый действительно <b>работает.</b>
 """;
             await bot.SendMessage(chat, welcome, parseMode: ParseMode.Html, cancellationToken: ct);
 
             // 2) PDF-презентация + пояснение
             const string more = """
-<b>Хочешь узнать больше?</b>
+Мы верим, что уход за кожей — это не набор баночек в ванной, а часть жизни. Здесь учат чувствовать комфорт, а не гнаться за «идеалом». Помогают не бояться реактивности кожи. Показывают, что уход работает и в простых жестах — в текстурах, ритуалах, <b>маленьких моментах тишины.</b>
 
-Мы подготовили короткую презентацию, где собрали главное о «SOVETNIK»: наши подходы, принципы работы, направления, которые мы развиваем, и то, почему нам доверяют предприниматели, руководители и инвесторы по всей стране.
+В Pore Over вы найдёте пространство, где вас слышат, поддерживают и подбирают решения под вашу кожу. Без громких обещаний, без иллюзий, зато с наукой, честностью и результатом. Добро пожаловать. ✨
 """;
-            var pdf = Path.Combine(AppContext.BaseDirectory, "Assets", "Presentation.pdf");
+            /*var pdf = Path.Combine(AppContext.BaseDirectory, "Assets", "Presentation.pdf");
             await bot.SendDocument(
                 chat,
                 InputFile.FromStream(File.OpenRead(pdf), "Presentation.pdf"),
                 more,
                 parseMode: ParseMode.Html,
                 cancellationToken: ct);
+            */
 
             // 3) voice
             var voice = Path.Combine(AppContext.BaseDirectory, "Assets", "welcome.ogg");
             await bot.SendVoice(
                 chat,
                 InputFile.FromStream(File.OpenRead(voice), "welcome.ogg"),
+                /*more,
+                parseMode: ParseMode.Html,*/
                 cancellationToken: ct);
 
+
             // 4) сразу запускаем квиз
-            state.Step = QuizStep.Role;
-            states.Save(chat, state);
-            var (q, opts) = _map[QuizStep.Role];
-            await bot.SendMessage(chat, q,
-                parseMode: ParseMode.Html,
-                replyMarkup: BuildReply(opts), cancellationToken: ct);
+            _ = Task.Run(async () => 
+            {
+                await Task.Delay(TimeSpan.FromSeconds(15), ct);
+                state.Step = QuizStep.Role;
+                states.Save(chat, state);
+                var (q, opts) = _map[QuizStep.Role];
+                await bot.SendMessage(chat, q,
+                    parseMode: ParseMode.Html,
+                    replyMarkup: BuildReply(opts), cancellationToken: ct);
+            });
         }
 
         private static ReplyMarkup BuildReply(string[] opts) =>
